@@ -3,18 +3,19 @@ import StarterKit from '@tiptap/starter-kit';
 import { Paragraph } from '@/types';
 import { Reorder, useDragControls, motion, useMotionValue, useTransform } from 'framer-motion';
 import { GripVertical, Sparkles } from 'lucide-react';
-
 interface ParagraphBlockProps {
   paragraph: Paragraph;
   isEditable: boolean;
   onGenerateCards: () => void;
-  onDrop: () => void;
+  onDrop: (paragraphId: string) => void; // onDrop의 시그니처 변경
   isCardDragging: boolean;
   onAddParagraph: () => void;
   autoFocus?: boolean;
   autoFocusNext?: boolean;
   onFocused?: () => void;
   onAddDescription?: () => void; // 묘사 추가 핸들러
+  onUndo: (paragraphId: string) => void; // 되돌리기 핸들러 추가
+  onParagraphUpdate: (updatedParagraph: Paragraph) => void; // 문단 업데이트 핸들러 추가
 }
 
 import { useEffect, useRef } from 'react';
@@ -25,9 +26,22 @@ declare global {
     __tiptap_editors?: any[];
   }
 }
-const ParagraphBlock = ({ paragraph, isEditable, onGenerateCards, onDrop, isCardDragging, onAddParagraph, autoFocus, autoFocusNext, onFocused, onAddDescription }: ParagraphBlockProps) => {
+const ParagraphBlock = ({
+  paragraph,
+  isEditable,
+  onGenerateCards,
+  onDrop,
+  isCardDragging,
+  onAddParagraph,
+  autoFocus,
+  autoFocusNext,
+  onFocused,
+  onAddDescription,
+  onUndo, // onUndo prop 받기
+  onParagraphUpdate,
+}: ParagraphBlockProps) => {
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [StarterKit,
     content: paragraph.content,
     editable: isEditable,
     editorProps: {
@@ -81,11 +95,15 @@ const ParagraphBlock = ({ paragraph, isEditable, onGenerateCards, onDrop, isCard
     }
   }, [autoFocusNext, editor, isEditable]);
 
-
   const dragControls = useDragControls();
   const x = useMotionValue(0);
   const backgroundOpacity = useTransform(x, [0, 200], [0, 0.7]);
   const iconOpacity = useTransform(x, [100, 200], [0, 1]);
+
+  // 제스처 감지를 위한 Refs
+  const scrubGestures = useRef(0);
+  const lastDragDirection = useRef(0);
+  const dragStartTime = useRef(0);
 
   // 롱프레스 관련
   const longPressTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -115,7 +133,33 @@ const ParagraphBlock = ({ paragraph, isEditable, onGenerateCards, onDrop, isCard
     }
   };
 
+  const handleDragStart = () => {
+    // 드래그 시작 시 제스처 정보 초기화
+    scrubGestures.current = 0;
+    lastDragDirection.current = 0;
+    dragStartTime.current = Date.now();
+  };
+
+  const handleDrag = (event: MouseEvent | TouchEvent | PointerEvent, info: any) => {
+    // 드래그 중 방향 전환 감지
+    const currentDirection = Math.sign(info.velocity.x);
+    if (currentDirection !== 0 && currentDirection !== lastDragDirection.current) {
+      scrubGestures.current++;
+      lastDragDirection.current = currentDirection;
+    }
+  };
+
   const handleDragEnd = (event: any, info: { offset: { x: number; y: number } }) => {
+    const dragDuration = Date.now() - dragStartTime.current;
+
+    // 1. 되돌리기 제스처(스크럽) 확인
+    // 1.5초 안에 3번 이상 방향이 바뀌었는지 확인
+    if (dragDuration < 1500 && scrubGestures.current >= 3) {
+      onUndo(paragraph.id);
+      return; // 다른 액션 방지
+    }
+
+    // 2. 기존의 스와이프 액션 확인
     if (info.offset.x > 200) {
       onGenerateCards(); // 오른쪽 스와이프: 자료 조사
     } else if (info.offset.x < -200 && typeof onAddDescription === 'function') {
@@ -124,7 +168,10 @@ const ParagraphBlock = ({ paragraph, isEditable, onGenerateCards, onDrop, isCard
   };
 
   return (
-    <motion.div onMouseUp={onDrop} className="relative">
+    <motion.div
+      onMouseUp={() => onDrop(paragraph.id)} // 마우스 버튼을 떼었을 때 paragraph.id와 함께 onDrop 호출
+      className="relative"
+    >
       <Reorder.Item
         value={paragraph}
         dragListener={false}
@@ -133,6 +180,8 @@ const ParagraphBlock = ({ paragraph, isEditable, onGenerateCards, onDrop, isCard
         style={{ x }}
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
+        onDragStart={handleDragStart}
+        onDrag={handleDrag}
         onDragEnd={handleDragEnd}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
@@ -168,3 +217,4 @@ const ParagraphBlock = ({ paragraph, isEditable, onGenerateCards, onDrop, isCard
 };
 
 export default ParagraphBlock;
+

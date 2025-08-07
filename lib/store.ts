@@ -17,12 +17,14 @@ const formatCardFromDb = (dbCard: any): ReferenceCard => ({
 interface CardStoreState {
   cards: ReferenceCard[];
   draggedCardId: string | null;
+  draggedCardFromPanel: ReferenceCard | null; // 드래그된 카드 객체 추가
   initializeCards: () => Promise<void>;
   setCards: (cards: ReferenceCard[]) => void;
   addCards: (newCards: Omit<ReferenceCard, 'id' | 'createdAt' | 'updatedAt'>[]) => Promise<void>;
   removeCard: (cardId: string) => void;
   updateCard: (updatedCard: ReferenceCard) => Promise<void>;
   setDraggedCardId: (id: string | null) => void;
+  setDraggedCardFromPanel: (card: ReferenceCard | null) => void; // 액션 추가
 }
 
 // Zustand 스토어 생성
@@ -30,6 +32,7 @@ export const useCardStore = create<CardStoreState>((set, get) => ({
   // 초기 상태
   cards: [],
   draggedCardId: null,
+  draggedCardFromPanel: null, // 초기 상태 추가
 
   initializeCards: async () => {
     try {
@@ -87,4 +90,6 @@ export const useCardStore = create<CardStoreState>((set, get) => ({
   },
 
   setDraggedCardId: (id) => set({ draggedCardId: id }),
+  setDraggedCardFromPanel: (card) => set({ draggedCardFromPanel: card }), // 액션 구현
 }));
+

@@ -1,21 +1,20 @@
 import { create } from 'zustand';
 
-type PanelType = 'episode' | 'reference' | null;
-
+type PanelType = 'episode' | 'reference';
 
 interface UIStoreState {
-  openPanel: PanelType;
-  togglePanel: (panel: PanelType) => void;
-  setOpenPanel: (panel: PanelType) => void;
+  activePanel: PanelType | null;
+  openEpisodePanel: () => void;
+  openReferencePanel: () => void;
+  closePanel: () => void;
+  switchPanel: (panel: PanelType) => void;
 }
 
-export const useUIStore = create<UIStoreState>((set, get) => ({
-  openPanel: null,
-  setOpenPanel: (panel) => set({ openPanel: panel }),
-  togglePanel: (panel) => {
-    const { openPanel } = get();
-    set({ openPanel: openPanel === panel ? null : panel });
-  },
+export const useUIStore = create<UIStoreState>((set) => ({
+  activePanel: null,
+  openEpisodePanel: () => set({ activePanel: 'episode' }),
+  openReferencePanel: () => set({ activePanel: 'reference' }),
+  closePanel: () => set({ activePanel: null }),
+  switchPanel: (panel) => set({ activePanel: panel }),
 }));
 
-// ...existing code...

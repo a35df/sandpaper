@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { Episode, Paragraph, ReferenceCard } from '@/types';
 import ParagraphBlock from './ParagraphBlock';
-import { Reorder } from 'framer-motion';
+import { Reorder, motion } from 'framer-motion';
 import ReferenceCardView from '@/components/ui/ReferenceCardView';
 import { useCardStore } from '@/lib/store';
+import TriageMode from '@/components/ui/TriageMode'; // TriageMode 임포트
+import GestureManager from '@/components/layout/GestureManager'; // GestureManager 임포트
 
 const createNewEpisode = (): Episode => ({
   id: '', // Will be set by the database
@@ -39,11 +41,19 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
     return initialEpisode || createNewEpisode();
   });
   const [isSaved, setIsSaved] = useState(!isNew);
-  const { cards: referenceCards, setCards: setReferenceCards, addCards } = useCardStore();
+  const { cards: referenceCards, setCards: setReferenceCards, addCards, draggedCardFromPanel, setDraggedCardFromPanel } = useCardStore();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [draggedCard, setDraggedCard] = useState<ReferenceCard | null>(null);
   const [rewritingParagraphId, setRewritingParagraphId] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [triageState, setTriageState] = useState<{
+    isActive: boolean;
+    targetParagraph: Paragraph | null;
+    entryPoint: 'swipe' | 'icon_tap';
+  }>({
+    isActive: false,
+    targetParagraph: null,
+    entryPoint: 'swipe',
+  });
 
   // 자동 저장 디바운스용 ref
   const saveTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -184,120 +194,67 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
   };
 
   const handleGenerateReference = async (paragraph: Paragraph) => {
-    if (isGenerating) return;
-    setIsGenerating(true);
-    setReferenceCards([]); // 기존 카드 초기화
-
-    try {
-      // 1. 모든 에피소드/요약
-      const episodesRes = await fetch('/api/episodes');
-      const allEpisodes = episodesRes.ok ? await episodesRes.json() : [];
-
-      // 2. 문서 검색 (문단 내용 기반)
-      const docSearchRes = await fetch('/api/documents/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: paragraph.content })
-      });
-      const docSearch = docSearchRes.ok ? await docSearchRes.json() : { results: [] };
-
-      // 3. 웹 검색 (문단 내용 기반)
-      const webSearchRes = await fetch('/api/ai/web-search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: paragraph.content })
-      });
-      const webSearch = webSearchRes.ok ? await webSearchRes.json() : { results: [] };
-
-      // 4. 카드 생성 요청
-      const response = await fetch('/api/ai/generate-cards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          episodeContext: episode,
+    // 이제 이 함수는 트라이아지 모드를 활성화하는 역할만 합니다.
+    setTriageState({
+      isActive: true,
           targetParagraph: paragraph,
-          allEpisodes,
-          documentSnippets: docSearch.results,
-          webResults: webSearch.results,
-        }),
+      entryPoint: 'swipe',
       });
-
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText}`);
-      }
-
-      const newCards: Omit<ReferenceCard, 'id' | 'isPinned' | 'group' | 'isInHold'>[] = await response.json();
-      
-      const formattedCards: ReferenceCard[] = newCards.map((card, index) => ({
-        ...card,
-        id: `ref-${Date.now()}-${index}`,
-        isPinned: false,
-        group: null,
-        isInHold: false,
-        rawContext: {
-          documentSnippets: docSearch.results,
-          webResults: webSearch.results,
-          allEpisodes,
-        },
-      }));
-
-      setReferenceCards(formattedCards);
-
-    } catch (error) {
-      console.error("Failed to generate reference cards:", error);
-      // TODO: 사용자에게 에러를 알리는 UI (e.g., a toast notification)
-    } finally {
-      setIsGenerating(false);
-    }
   };
 
-  const handleRewriteParagraph = async (targetParagraph: Paragraph) => {
-    if (!draggedCard || rewritingParagraphId) return;
+  const handleIconTap = (paragraph: Paragraph) => {
+    // 아이콘 탭으로 트라이아지 모드 진입
+    setTriageState({
+      isActive: true,
+      targetParagraph: paragraph,
+      entryPoint: 'icon_tap',
+    });
+  };
 
-    setRewritingParagraphId(targetParagraph.id);
-    const originalContent = targetParagraph.content;
+  const handleDropOnParagraph = async (paragraphId: string) => {
+    if (!draggedCardFromPanel) return;
 
+    const cardToApply = draggedCardFromPanel;
+    setDraggedCardFromPanel(null); // 즉시 드래그 상태 해제 (중복 실행 방지)
     try {
-      // Optimistic update
-      const optimisticParagraphs = episode.paragraphs.map(p =>
-        p.id === targetParagraph.id ? { ...p, content: 'AI가 문장을 다듬고 있습니다...' } : p
-      );
-      setEpisode(prev => ({ ...prev, paragraphs: optimisticParagraphs }));
-
-      const response = await fetch('/api/ai/rewrite-paragraph', {
+      const response = await fetch(`/api/episodes/${episode.id}/paragraphs/${paragraphId}/apply-card`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          targetParagraph,
-          referenceCard: draggedCard,
-          rawContext: draggedCard.rawContext || {},
-        }),
+        body: JSON.stringify({ reference_card_id: cardToApply.id }),
+      });
+      if (response.ok) {
+        const updatedParagraph = await response.json();
+            setEpisode(prev => ({
+              ...prev,
+              paragraphs: prev.paragraphs.map(p => p.id === updatedParagraph.id ? updatedParagraph : p)
+            }));
+      } else {
+        console.error('Failed to apply card from panel');
+      }
+    } catch (error) {
+      console.error('Error in handleDropOnParagraph:', error);
+    }
+          };
+
+
+  const handleUndo = async (paragraphId: string) => {
+    try {
+      const response = await fetch(`/api/episodes/${episode.id}/paragraphs/${paragraphId}/undo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       });
 
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText}`);
+      if (response.ok) {
+        const undoneParagraph = await response.json();
+        setEpisode(prev => ({
+          ...prev,
+          paragraphs: prev.paragraphs.map(p => p.id === undoneParagraph.id ? undoneParagraph : p),
+        }));
+      } else {
+        console.error('Failed to undo paragraph changes');
       }
-
-      const { rewrittenText } = await response.json();
-
-      // Final update
-      const finalParagraphs = episode.paragraphs.map(p =>
-        p.id === targetParagraph.id ? { ...p, content: rewrittenText } : p
-      );
-      setEpisode(prev => ({ ...prev, paragraphs: finalParagraphs, updatedAt: new Date() }));
-      setIsSaved(false); // 변경되었으므로 저장 필요
-
     } catch (error) {
-      console.error("Failed to rewrite paragraph:", error);
-      // Rollback on error
-      const revertedParagraphs = episode.paragraphs.map(p =>
-        p.id === targetParagraph.id ? { ...p, content: originalContent } : p
-      );
-      setEpisode(prev => ({ ...prev, paragraphs: revertedParagraphs }));
-      // TODO: Show error toast
-    } finally {
-      setRewritingParagraphId(null);
-      setDraggedCard(null);
+      console.error('Error in handleUndo:', error);
     }
   };
 
@@ -310,7 +267,7 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
     const newId = `temp-${Date.now()}`;
     setEpisode(prev => {
       const idx = afterId ? prev.paragraphs.findIndex(p => p.id === afterId) : prev.paragraphs.length - 1;
-      const newParagraphs = [...prev.paragraphs];
+      const newParagraphs = [...prev.paragraphs;
       newParagraphs.splice(idx + 1, 0, { id: newId, content: '', order: idx + 2 });
       // order 재정렬
       return {
@@ -324,9 +281,66 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
 
   // 첫 문단 자동 포커스
   const [shouldFocusFirst, setShouldFocusFirst] = useState(true);
+  const [showPushUpHint, setShowPushUpHint] = useState(false);
+
+  const handlePushUp = (e: MouseEvent | TouchEvent | PointerEvent, info: any) => {
+    // y축으로 위로 드래그하고, 특정 속도 이상일 때 힌트 표시
+    if (info.offset.y < -100 && info.velocity.y < -500) {
+      setShowPushUpHint(true);
+    } else {
+      setShowPushUpHint(false);
+    }
+  };
+
+  const handlePushUpEnd = async (e: MouseEvent | TouchEvent | PointerEvent, info: any) => {
+    // 트라이아지 모드가 활성 상태이면, 모드만 닫음
+    if (triageState.isActive) {
+      setTriageState({ isActive: false, targetParagraph: null, entryPoint: 'swipe' });
+    setShowPushUpHint(false);
+      return;
+    }
+
+    // 드래그가 충분히 길고 빠르면 다음 액션 실행
+    if (info.offset.y < -150 && info.velocity.y < -500) {
+      // 1. 현재 에피소드 저장 및 요약 (기존 handleSave 로직과 유사)
+      const url = isNew ? '/api/episodes' : `/api/episodes/${episode.id}`;
+      const method = isNew ? 'POST' : 'PATCH';
+      try {
+        const response = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: episode.title, paragraphs: episode.paragraphs }),
+        });
+        if (!response.ok) throw new Error('Failed to save episode');
+        const savedEpisode = await response.json();
+        await generateAndSaveSummary(savedEpisode.id, savedEpisode.title, savedEpisode.paragraphs);
+
+        // 2. 새 에피소드 생성
+        const newEpisodeResponse = await fetch('/api/episodes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: '새 에피소드', paragraphs: [] }), // 기본 새 에피소드
+        });
+        if (!newEpisodeResponse.ok) throw new Error('Failed to create new episode');
+
+        const newEpisode = await newEpisodeResponse.json();
+
+        // 3. 새 에피소드로 이동
+        window.location.assign(`/episodes/${newEpisode.id}`);
+
+      } catch (error) {
+        console.error("Failed to proceed to next episode:", error);
+      }
+    }
+    setShowPushUpHint(false);
+  };
 
   return (
-    <div
+    <>
+      <GestureManager />
+    <motion.div
+      onPan={handlePushUp}
+      onPanEnd={handlePushUpEnd}
       className="p-8 max-w-4xl mx-auto"
       tabIndex={0}
       onKeyDown={async (e) => {
@@ -364,7 +378,7 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             // 문단이 하나도 없거나 첫 문단이 비어있으면 첫 문단에 포커스, 아니면 첫 문단 추가
-            if (episode.paragraphs.length === 0 || episode.paragraphs[0].content !== '') {
+            if (episode.paragraphs.length === 0 || episode.paragraphs[0]?.content !== '') {
               handleAddParagraph(undefined);
             }
             setShouldFocusFirst(true);
@@ -372,6 +386,20 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
         }}
         className="text-4xl font-bold mb-6 bg-transparent w-full focus:outline-none focus:border-b-2 border-gray-700"
       />
+
+      {triageState.isActive && triageState.targetParagraph && (
+        <TriageMode
+          paragraph={triageState.targetParagraph}
+          entryPoint={triageState.entryPoint}
+          onClose={() => setTriageState({ isActive: false, targetParagraph: null, entryPoint: 'swipe' })}
+          onParagraphUpdate={(updatedParagraph) => {
+            setEpisode(prev => ({
+              ...prev,
+              paragraphs: prev.paragraphs.map(p => p.id === updatedParagraph.id ? updatedParagraph : p)
+            }));
+          }}
+        />
+      )}
 
       {/* 저장 후에만 AI 요약 표시 (블록 위) */}
       {isSaved && (
@@ -403,8 +431,6 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
               <ReferenceCardView
                 key={card.id}
                 card={card}
-                onDragStart={() => setDraggedCard(card)}
-                onDragEnd={() => setDraggedCard(null)}
               />
             ))}
           </div>
@@ -431,7 +457,7 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
                   paragraph: target,
                   episode: { title: episode.title, paragraphs: episode.paragraphs },
                   episodeSummary: episode.summary,
-                  // relatedEpisodes: [] // 추후 확장
+                  // relatedEpisodes: [ // 추후 확장
                 }),
               });
               const data = await res.json();
@@ -462,11 +488,12 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
                 autoFocus={shouldFocusFirst && idx === 0}
                 autoFocusNext={focusNextId === p.id}
                 onGenerateCards={() => handleGenerateReference(p)}
-                onDrop={() => handleRewriteParagraph(p)}
-                isCardDragging={!!draggedCard}
+                onDrop={() => handleDropOnParagraph(p.id)}
+                isCardDragging={!!draggedCardFromPanel}
                 onAddParagraph={() => handleAddParagraph(p.id)}
                 onFocused={() => { if (focusNextId === p.id) setFocusNextId(null); }}
                 onAddDescription={() => handleAddDescription(p.id)}
+                onIconTap={() => handleIconTap(p)} // 아이콘 탭 핸들러 추가
               />
             ));
         })()}
@@ -482,8 +509,15 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
           </button>
         </div>
       )}
-    </div>
+      {showPushUpHint && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-full shadow-lg">
+          <p>계속 밀어서 다음 에피소드 생성</p>
+        </div>
+      )}
+    </motion.div>
+    </>
   );
 };
 
 export default EpisodeEditor;
+

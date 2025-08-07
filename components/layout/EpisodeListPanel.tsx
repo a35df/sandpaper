@@ -1,4 +1,3 @@
-
 "use client";
 
 const HoldZone = ({ onDrop, isHovered }: { onDrop: () => void; isHovered: boolean }) => {
@@ -28,7 +27,7 @@ import StackedCardView from '../ui/StackedCardView';
 type EpisodeListItem = Pick<Episode, 'id' | 'title' | 'summary'>;
 
 const EpisodeListPanel = () => {
-  const [episodes, setEpisodes] = useState<EpisodeListItem[]>([]);
+  const [episodes, setEpisodes] = useState<EpisodeListItem[>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -61,16 +60,14 @@ const EpisodeListPanel = () => {
   // ...existing code...
 
   const [isHoldZoneHovered, setIsHoldZoneHovered] = useState(false);
-  const openPanel = useUIStore(state => state.openPanel);
-  const togglePanel = useUIStore(state => state.togglePanel);
-
-  const isOpen = openPanel === 'episode';
+  const { activePanel, openEpisodePanel, closePanel } = useUIStore();
+  const isOpen = activePanel === 'episode';
   return (
     <SidePanel
       position="left"
       isOpen={isOpen}
-      onOpen={() => togglePanel('episode')}
-      onClose={() => togglePanel('episode')}
+      onOpen={openEpisodePanel}
+      onClose={closePanel}
     >
       <h2 className="text-2xl font-bold text-white mb-6">에피소드 목록</h2>
       <div className="space-y-3 pb-20">
@@ -89,7 +86,7 @@ const EpisodeListPanel = () => {
                   dragSnapToOrigin
                   dragElastic={0.2}
                   dragMomentum={false}
-                  className="p-4 bg-gray-800 rounded-lg hover:bg-indigo-600 transition-colors h-[72px] border border-gray-700 shadow-md cursor-grab active:cursor-grabbing select-none"
+                  className="p-4 bg-gray-800 rounded-lg hover:bg-indigo-600 transition-colors h-[122px] border border-gray-700 shadow-md cursor-grab active:cursor-grabbing select-none"
                   onPointerDown={() => { dragStarted = false; }}
                   onDragStart={() => { dragStarted = true; }}
                   onClick={(e) => {
@@ -140,3 +137,4 @@ const EpisodeListPanel = () => {
 };
 
 export default EpisodeListPanel;
+

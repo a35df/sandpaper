@@ -25,12 +25,12 @@ const HoldZone = ({ onDrop, isHovered }: { onDrop: () => void; isHovered: boolea
 };
 
 const ReferenceCardPanel = () => {
-  const { cards, updateCard, draggedCardId, setDraggedCardId, initializeCards } = useCardStore();
+  const { cards, updateCard, draggedCardId, setDraggedCardId, initializeCards, setDraggedCardFromPanel } = useCardStore();
   const [isHoldZoneHovered, setIsHoldZoneHovered] = useState(false);
 
   useEffect(() => {
     initializeCards();
-  }, [initializeCards]);
+  }, [initializeCards);
 
   const handlePinToggle = (card: ReferenceCard) => {
     updateCard({ ...card, isPinned: !card.isPinned });
@@ -65,16 +65,14 @@ const ReferenceCardPanel = () => {
   });
 
   const [showHold, setShowHold] = useState(false);
-  const openPanel = useUIStore(state => state.openPanel);
-  const togglePanel = useUIStore(state => state.togglePanel);
-
-  const isOpen = openPanel === 'reference';
+  const { activePanel, openReferencePanel, closePanel } = useUIStore();
+  const isOpen = activePanel === 'reference';
   return (
     <SidePanel
-      position="right"
+      position="left" // 오른쪽에서 왼쪽으로 변경
       isOpen={isOpen}
-      onOpen={() => togglePanel('reference')}
-      onClose={() => togglePanel('reference')}
+      onOpen={openReferencePanel}
+      onClose={closePanel}
     >
       <h2 className="text-2xl font-bold text-white mb-6">참조 카드 보관함</h2>
       <div 
@@ -85,16 +83,21 @@ const ReferenceCardPanel = () => {
         <StackedCardView
           items={sortedActiveCards}
           renderItem={(card, hovered) => {
-            let dragStarted = false;
             return (
               <motion.div
                 drag
                 dragSnapToOrigin
                 dragElastic={0.2}
                 dragMomentum={false}
-                onDragStart={() => { setDraggedCardId(card.id); dragStarted = true; }}
-                onDragEnd={() => setDraggedCardId(null)}
-                className={`p-4 rounded-lg border h-[96px] flex flex-col justify-between cursor-grab active:cursor-grabbing transition-all duration-200 select-none
+                onDragStart={() => {
+                  setDraggedCardId(card.id);
+                  setDraggedCardFromPanel(card); // 드래그 시작 시 카드 정보 저장
+                }}
+                onDragEnd={() => {
+                  setDraggedCardId(null);
+                  setDraggedCardFromPanel(null); // 드래그 종료 시 초기화
+                }}
+                className={`p-4 rounded-lg border h-[163px flex flex-col justify-between cursor-grab active:cursor-grabbing transition-all duration-200 select-none
                   ${hovered ? 'bg-indigo-900/80 border-blue-400 shadow-2xl scale-105 z-50' : 'bg-gray-800 border-gray-700 shadow-md'}
                 `}
                 style={{ touchAction: 'none' }}
@@ -181,3 +184,4 @@ const ReferenceCardPanel = () => {
 };
 
 export default ReferenceCardPanel;
+
