@@ -39,7 +39,7 @@ const SidePanel = ({ position, children, isOpen, onOpen, onClose }: SidePanelPro
             animate="visible"
             exit="hidden"
             variants={variants}
-            className={`fixed top-0 ${position}-0 h-full w-80 bg-gray-950/80 backdrop-blur-md shadow-2xl ${position === 'left' ? 'z-40 border-r-gray-800' : 'z-70 border-l-gray-800'} border-l border-r`}
+            className={`fixed top-0 ${position}-0 h-full w-80 bg-gray-950/80 backdrop-blur-md shadow-2xl ${position === 'left' ? 'border-r-gray-800' : 'border-l-gray-800'} border-l border-r ${isOpen ? 'z-[999]' : (position === 'left' ? 'z-40' : 'z-70')}`}
             onMouseLeave={onClose}
           >
             <div className="p-4 h-full overflow-y-auto">
@@ -53,3 +53,4 @@ const SidePanel = ({ position, children, isOpen, onOpen, onClose }: SidePanelPro
 };
 
 export default SidePanel;
+

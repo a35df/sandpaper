@@ -6,3 +6,15 @@
 body {
   min-height: 100vh;
 }
+
+.ProseMirror {
+  outline: none;
+}
+
+/* 모바일 뷰에서 문단 폰트 크기 키우기 */
+@media (max-width: 768px) {
+  .ProseMirror p {
+    font-size: 1.125rem; /* 18px */
+    line-height: 1.75rem; /* 28px */
+  }
+}
