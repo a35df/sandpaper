@@ -16,6 +16,8 @@ const createNewEpisode = (): Episode => ({
     id: `temp-${i + 1}-${Date.now()}`,
     content: '',
     order: i + 1,
+    content_history: [],
+    applied_card_history: [],
   })),
   summary: '',
   createdAt: new Date(),
@@ -28,7 +30,7 @@ interface EpisodeEditorProps {
 }
 
 const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) => {
-  const [episode, setEpisode = useState<Episode>(() => {
+  const [episode, setEpisode] = useState<Episode>(() => {
     // localStorage에서 임시 저장 불러오기
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('autosave-episode');
@@ -241,25 +243,29 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
     try {
       const response = await fetch(`/api/episodes/${episode.id}/paragraphs/${paragraphId}/undo`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
       });
 
-      if (response.ok) {
-        const undoneParagraph = await response.json();
-        setEpisode(prev => ({
-          ...prev,
-          paragraphs: prev.paragraphs.map(p => p.id === undoneParagraph.id ? undoneParagraph : p),
-        }));
-      } else {
-        console.error('Failed to undo paragraph changes');
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 400) {
+          console.log(errorData.error); // 예: "No history to undo"
+          return;
+        }
+        throw new Error(errorData.error || 'Failed to undo');
       }
+
+      const undoneParagraph = await response.json();
+            setEpisode(prev => ({
+              ...prev,
+        paragraphs: prev.paragraphs.map(p => p.id === undoneParagraph.id ? undoneParagraph : p),
+            }));
     } catch (error) {
       console.error('Error in handleUndo:', error);
     }
   };
 
   // 현재 편집 가능한 문단은 마지막 문단
-  const lastParagraphId = episode.paragraphs.length > 0 ? episode.paragraphs[episode.paragraphs.length - 1].id : null;
+  const lastParagraphId = episode.paragraphs.length > 0 ? episode.paragraphs[episode.paragraphs.length - 1.id : null;
 
   // 문단 추가 핸들러 (엔터 등에서 호출)
   const [focusNextId, setFocusNextId] = useState<string | null>(null);
@@ -431,6 +437,8 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
               <ReferenceCardView
                 key={card.id}
                 card={card}
+                onDragStart={() => {}}
+                onDragEnd={() => {}}
               />
             ))}
           </div>
@@ -493,7 +501,7 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
                 onAddParagraph={() => handleAddParagraph(p.id)}
                 onFocused={() => { if (focusNextId === p.id) setFocusNextId(null); }}
                 onAddDescription={() => handleAddDescription(p.id)}
-                onIconTap={() => handleIconTap(p)} // 아이콘 탭 핸들러 추가
+                onUndo={() => handleUndo(p.id)}
               />
             ));
         })()}
