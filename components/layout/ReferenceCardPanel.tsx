@@ -30,7 +30,7 @@ const ReferenceCardPanel = () => {
 
   useEffect(() => {
     initializeCards();
-  }, [initializeCards);
+  }, [initializeCards]);
 
   const handlePinToggle = (card: ReferenceCard) => {
     updateCard({ ...card, isPinned: !card.isPinned });

@@ -28,7 +28,7 @@ interface EpisodeEditorProps {
 }
 
 const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) => {
-  const [episode, setEpisode] = useState<Episode>(() => {
+  const [episode, setEpisode = useState<Episode>(() => {
     // localStorage에서 임시 저장 불러오기
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('autosave-episode');
@@ -267,8 +267,8 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
     const newId = `temp-${Date.now()}`;
     setEpisode(prev => {
       const idx = afterId ? prev.paragraphs.findIndex(p => p.id === afterId) : prev.paragraphs.length - 1;
-      const newParagraphs = [...prev.paragraphs;
-      newParagraphs.splice(idx + 1, 0, { id: newId, content: '', order: idx + 2 });
+      const newParagraphs = [...prev.paragraphs];
+      newParagraphs.splice(idx + 1, 0, { id: newId, content: '', order: idx + 2, content_history: [], applied_card_history: [] });
       // order 재정렬
       return {
         ...prev,
