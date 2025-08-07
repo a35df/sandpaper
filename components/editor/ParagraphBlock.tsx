@@ -20,12 +20,6 @@ interface ParagraphBlockProps {
 
 import { useEffect, useRef } from 'react';
 
-// window에 __tiptap_editors 타입 선언 (TS 오류 방지)
-declare global {
-  interface Window {
-    __tiptap_editors?: any[];
-  }
-}
 const ParagraphBlock = ({
   paragraph,
   isEditable,
@@ -59,19 +53,6 @@ const ParagraphBlock = ({
       },
     },
   });
-
-  // TipTap editor를 window.__tiptap_editors에 등록 (전체 선택용)
-  useEffect(() => {
-    if (!window.__tiptap_editors) window.__tiptap_editors = [];
-    if (editor && !window.__tiptap_editors.includes(editor)) {
-      window.__tiptap_editors.push(editor);
-    }
-    return () => {
-      if (window.__tiptap_editors && editor) {
-        window.__tiptap_editors = window.__tiptap_editors.filter((ed: any) => ed !== editor);
-      }
-    };
-  }, [editor]);
 
   const dragControls = useDragControls();
   const x = useMotionValue(0);
