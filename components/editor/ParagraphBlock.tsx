@@ -10,12 +10,12 @@ interface ParagraphBlockProps {
   onDrop: (paragraphId: string) => void;
   isCardDragging: boolean;
   onAddParagraph: () => void;
+  onAddDescription: (paragraphId: string) => void;
+  onUndo: (paragraphId: string) => void;
+  onIconTap: () => void;
   autoFocus?: boolean;
   autoFocusNext?: boolean;
   onFocused?: () => void;
-  onAddDescription?: () => void;
-  onUndo: (paragraphId: string) => void;
-  onIconTap: () => void;
 }
 
 import { useEffect, useRef } from 'react';
@@ -23,7 +23,7 @@ import { useEffect, useRef } from 'react';
 // window에 __tiptap_editors 타입 선언 (TS 오류 방지)
 declare global {
   interface Window {
-    __tiptap_editors?: any[;
+    __tiptap_editors?: any[];
   }
 }
 const ParagraphBlock = ({
@@ -73,7 +73,7 @@ const ParagraphBlock = ({
         window.__tiptap_editors = window.__tiptap_editors.filter((ed: any) => ed !== editor);
       }
     };
-  }, [editor);
+  }, [editor]);
 
   // 최초 진입 시 포커스
   useEffect(() => {
@@ -97,7 +97,7 @@ const ParagraphBlock = ({
 
   const dragControls = useDragControls();
   const x = useMotionValue(0);
-  const backgroundOpacity = useTransform(x, [0, 200], [0, 0.7]);
+  const backgroundOpacity = useTransform(x, [0, 200, [0, 0.7]);
   const iconOpacity = useTransform(x, [100, 200], [0, 1]);
 
   // 제스처 감지를 위한 Refs
@@ -163,7 +163,7 @@ const ParagraphBlock = ({
     if (info.offset.x > 200) {
       onGenerateCards(); // 오른쪽 스와이프: 자료 조사
     } else if (info.offset.x < -200 && typeof onAddDescription === 'function') {
-      onAddDescription(); // 왼쪽 스와이프: 묘사 추가
+      onAddDescription(paragraph.id); // 왼쪽 스와이프: 묘사 추가
     }
   };
 
@@ -208,12 +208,15 @@ const ParagraphBlock = ({
             <EditorContent editor={editor} />
           </div>
           {paragraph.applied_card_history && paragraph.applied_card_history.length > 0 && (
-            <div
-              onClick={onIconTap}
-              className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 bg-indigo-500 rounded-full cursor-pointer hover:bg-indigo-400"
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // 드래그 방지
+                onIconTap();
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 bg-indigo-500 rounded-full cursor-pointer hover:bg-indigo-400 z-20"
             >
               <span className="text-white text-xs font-bold">{paragraph.applied_card_history.length}</span>
-            </div>
+            </button>
           )}
         </div>
       </Reorder.Item>

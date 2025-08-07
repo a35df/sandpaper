@@ -73,10 +73,7 @@ const TriageMode = ({ episodeId, paragraph, entryPoint, onClose, onParagraphUpda
             body: JSON.stringify({ current_card_id }),
           });
         }
-
-        if (response.ok) {
-          setCards(await response.json());
-        }
+        if (response.ok) setCards(await response.json());
       } catch (error) {
         console.error('Error fetching cards:', error);
       } finally {
@@ -84,7 +81,9 @@ const TriageMode = ({ episodeId, paragraph, entryPoint, onClose, onParagraphUpda
       }
     };
 
+    if (episodeId && currentParagraph.id) {
     fetchCards();
+    }
   }, [episodeId, currentParagraph, entryPoint]);
 
   const handleCardDrop = async (cardId: string) => {
@@ -147,3 +146,4 @@ const TriageMode = ({ episodeId, paragraph, entryPoint, onClose, onParagraphUpda
 };
 
 export default TriageMode;
+
