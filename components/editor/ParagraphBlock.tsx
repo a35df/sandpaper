@@ -62,7 +62,7 @@ const ParagraphBlock = ({
 
   // TipTap editor를 window.__tiptap_editors에 등록 (전체 선택용)
   useEffect(() => {
-    if (!window.__tiptap_editors) window.__tiptap_editors = [;
+    if (!window.__tiptap_editors) window.__tiptap_editors = [];
     if (editor && !window.__tiptap_editors.includes(editor)) {
       window.__tiptap_editors.push(editor);
     }
@@ -71,12 +71,12 @@ const ParagraphBlock = ({
         window.__tiptap_editors = window.__tiptap_editors.filter((ed: any) => ed !== editor);
       }
     };
-  }, [editor);
+  }, [editor]);
 
   const dragControls = useDragControls();
   const x = useMotionValue(0);
-  const backgroundOpacity = useTransform(x, [0, 200, [0, 0.7);
-  const iconOpacity = useTransform(x, [100, 200, [0, 1]);
+  const backgroundOpacity = useTransform(x, [0, 200], [0, 0.7);
+  const iconOpacity = useTransform(x, [100, 200], [0, 1]);
 
   // 제스처 감지를 위한 Refs
   const scrubGestures = useRef(0);
