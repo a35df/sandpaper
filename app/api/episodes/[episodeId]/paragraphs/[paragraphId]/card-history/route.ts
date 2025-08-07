@@ -40,7 +40,7 @@ export async function GET(
 
     // 히스토리 순서대로 카드 정렬 (최신이 위로)
     const sortedCards = cardIds
-      .map(id => cards.find(card => card.id === id))
+      .map((id: string) => cards.find(card => card.id === id))
       .filter(Boolean)
       .reverse(); // 최신이 배열의 마지막에 있으므로 reverse
 
@@ -50,3 +50,4 @@ export async function GET(
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
