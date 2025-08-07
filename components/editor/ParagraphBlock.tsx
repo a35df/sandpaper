@@ -7,15 +7,15 @@ interface ParagraphBlockProps {
   paragraph: Paragraph;
   isEditable: boolean;
   onGenerateCards: () => void;
-  onDrop: (paragraphId: string) => void; // onDrop의 시그니처 변경
+  onDrop: (paragraphId: string) => void;
   isCardDragging: boolean;
   onAddParagraph: () => void;
   autoFocus?: boolean;
   autoFocusNext?: boolean;
   onFocused?: () => void;
-  onAddDescription?: () => void; // 묘사 추가 핸들러
-  onUndo: (paragraphId: string) => void; // 되돌리기 핸들러 추가
-  onParagraphUpdate: (updatedParagraph: Paragraph) => void; // 문단 업데이트 핸들러 추가
+  onAddDescription?: () => void;
+  onUndo: (paragraphId: string) => void;
+  onIconTap: () => void;
 }
 
 import { useEffect, useRef } from 'react';
@@ -23,7 +23,7 @@ import { useEffect, useRef } from 'react';
 // window에 __tiptap_editors 타입 선언 (TS 오류 방지)
 declare global {
   interface Window {
-    __tiptap_editors?: any[];
+    __tiptap_editors?: any[;
   }
 }
 const ParagraphBlock = ({
@@ -37,11 +37,11 @@ const ParagraphBlock = ({
   autoFocusNext,
   onFocused,
   onAddDescription,
-  onUndo, // onUndo prop 받기
-  onParagraphUpdate,
+  onUndo,
+  onIconTap,
 }: ParagraphBlockProps) => {
   const editor = useEditor({
-    extensions: [StarterKit,
+    extensions: [StarterKit],
     content: paragraph.content,
     editable: isEditable,
     editorProps: {
@@ -73,7 +73,7 @@ const ParagraphBlock = ({
         window.__tiptap_editors = window.__tiptap_editors.filter((ed: any) => ed !== editor);
       }
     };
-  }, [editor]);
+  }, [editor);
 
   // 최초 진입 시 포커스
   useEffect(() => {
@@ -201,15 +201,20 @@ const ParagraphBlock = ({
           <Sparkles className="h-6 w-6 text-white" />
         </motion.div>
         <div className="relative flex items-center gap-2 p-2 rounded-md hover:bg-gray-800/50 transition-colors">
-          <div
-            onPointerDown={(e) => dragControls.start(e)}
-            className="cursor-grab active:cursor-grabbing z-10"
-          >
+          <div className="cursor-grab active:cursor-grabbing z-10">
             <GripVertical className="h-5 w-5 text-gray-500" />
           </div>
           <div className="flex-grow bg-transparent">
             <EditorContent editor={editor} />
           </div>
+          {paragraph.applied_card_history && paragraph.applied_card_history.length > 0 && (
+            <div
+              onClick={onIconTap}
+              className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 bg-indigo-500 rounded-full cursor-pointer hover:bg-indigo-400"
+            >
+              <span className="text-white text-xs font-bold">{paragraph.applied_card_history.length}</span>
+            </div>
+          )}
         </div>
       </Reorder.Item>
     </motion.div>
