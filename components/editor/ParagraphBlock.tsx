@@ -33,7 +33,7 @@ const ParagraphBlock = ({
   onIconTap,
 }: ParagraphBlockProps) => {
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [StarterKit,
     content: paragraph.content,
     editable: isEditable,
     editorProps: {
@@ -56,8 +56,8 @@ const ParagraphBlock = ({
 
   const dragControls = useDragControls();
   const x = useMotionValue(0);
-  const backgroundOpacity = useTransform(x, [0, 200], [0, 0.7]);
-  const iconOpacity = useTransform(x, [100, 200], [0, 1);
+  const backgroundOpacity = useTransform(x, [0, 200, [0, 0.7);
+  const iconOpacity = useTransform(x, [100, 200], [0, 1]);
 
   // 제스처 감지를 위한 Refs
   const scrubGestures = useRef(0);
