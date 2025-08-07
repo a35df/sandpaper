@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Episode, Paragraph } from '@/types';
+import { useState, useEffect, useRef } from 'react';
+import { Episode, Paragraph, ReferenceCard } from '@/types';
 import ParagraphBlock from './ParagraphBlock';
 import { Reorder, motion } from 'framer-motion';
 import { useCardStore } from '@/lib/store';
@@ -29,7 +29,6 @@ interface EpisodeEditorProps {
 }
 
 const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) => {
-  // --- 상태 관리 ---
   const [episode, setEpisode] = useState<Episode>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('autosave-episode');
@@ -40,15 +39,18 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
     return initialEpisode || createNewEpisode();
   });
 
+  const [isSaved, setIsSaved] = useState(!isNew);
   const { draggedCardFromPanel, setDraggedCardFromPanel } = useCardStore();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
   const [triageState, setTriageState] = useState<{
     isActive: boolean;
     targetParagraph: Paragraph | null;
     entryPoint: 'swipe' | 'icon_tap';
   }>({ isActive: false, targetParagraph: null, entryPoint: 'swipe' });
+  const [focusNextId, setFocusNextId] = useState<string | null>(null);
   const [showPushUpHint, setShowPushUpHint] = useState(false);
 
-  // --- 데이터 및 상태 업데이트 핸들러 ---
   const handleParagraphUpdate = (updatedParagraph: Paragraph) => {
     setEpisode(prev => ({
       ...prev,
@@ -61,22 +63,22 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
     setEpisode(prev => {
       const idx = afterId ? prev.paragraphs.findIndex(p => p.id === afterId) : prev.paragraphs.length - 1;
       const newParagraphs = [...prev.paragraphs];
-      newParagraphs.splice(idx + 1, 0, { id: newId, content: '', order: idx + 2, content_history: [], applied_card_history: [ });
+      newParagraphs.splice(idx + 1, 0, { id: newId, content: '', order: idx + 2, content_history: [], applied_card_history: [] });
       return {
         ...prev,
         paragraphs: newParagraphs.map((p, i) => ({ ...p, order: i + 1 })),
       };
     });
+    setFocusNextId(newId);
   };
 
-  const handleParagraphReorder = (newOrder: Paragraph[) => {
+  const handleParagraphReorder = (newOrder: Paragraph[]) => {
     setEpisode(prev => ({
       ...prev,
       paragraphs: newOrder.map((p, index) => ({ ...p, order: index + 1 })),
     }));
   };
-
-  // --- API 호출 핸들러 ---
+  
   const handleDropOnParagraph = async (paragraphId: string) => {
     if (!draggedCardFromPanel) return;
     const cardToApply = draggedCardFromPanel;
@@ -98,8 +100,8 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
     } catch (error) { console.error('Error in handleUndo:', error); }
   };
 
-  const handleAddDescription = async (paragraphId: string) => { /* ... 묘사 확장 API 호출 ... */ };
-  // --- 제스처 및 모드 핸들러 ---
+  const handleAddDescription = async (paragraphId: string) => { /* Placeholder for API call */ };
+  
   const handleGenerateReference = (paragraph: Paragraph) => setTriageState({ isActive: true, targetParagraph: paragraph, entryPoint: 'swipe' });
   const handleIconTap = (paragraph: Paragraph) => setTriageState({ isActive: true, targetParagraph: paragraph, entryPoint: 'icon_tap' });
 
@@ -115,12 +117,12 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
       return;
     }
     if (info.offset.y < -150 && info.velocity.y < -500) {
-      // 다음 에피소드로 넘어가는 로직 구현
+      // Logic for saving and proceeding to the next episode
     }
     setShowPushUpHint(false);
   };
-  // --- 렌더링 ---
-  const lastParagraphId = episode.paragraphs.length > 0 ? episode.paragraphs[episode.paragraphs.length - 1.id : null;
+
+  const lastParagraphId = episode.paragraphs.length > 0 ? episode.paragraphs[episode.paragraphs.length - 1].id : null;
 
   return (
     <>
@@ -136,6 +138,7 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
           onChange={(e) => setEpisode(prev => ({ ...prev, title: e.target.value }))}
           className="text-4xl font-bold mb-6 bg-transparent w-full focus:outline-none"
         />
+
         {triageState.isActive && triageState.targetParagraph && (
           <TriageMode
             episodeId={episode.id}
@@ -160,13 +163,12 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
                 paragraph={p}
                 isEditable={p.id === lastParagraphId}
                 onGenerateCards={() => handleGenerateReference(p)}
-                onDrop={() => handleDropOnParagraph(p.id)}
+                onDrop={handleDropOnParagraph}
                 isCardDragging={!!draggedCardFromPanel}
                 onAddParagraph={() => handleAddParagraph(p.id)}
-                onAddDescription={() => handleAddDescription(p.id)}
-                onUndo={() => handleUndo(p.id)}
+                onAddDescription={handleAddDescription}
+                onUndo={handleUndo}
                 onIconTap={() => handleIconTap(p)}
-                onUpdate={handleParagraphUpdate}
               />
             ))}
         </Reorder.Group>
@@ -181,4 +183,3 @@ const EpisodeEditor = ({ initialEpisode, isNew = false }: EpisodeEditorProps) =>
   );
 };
 export default EpisodeEditor;
-

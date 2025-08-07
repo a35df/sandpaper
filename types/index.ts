@@ -7,7 +7,7 @@ export interface Paragraph {
   id: string;
   content: string;
   order: number;
-  content_history: string[;
+  content_history: string[];
   applied_card_history: string[];
 }
 

@@ -3,6 +3,8 @@ import StarterKit from '@tiptap/starter-kit';
 import { Paragraph } from '@/types';
 import { Reorder, useDragControls, motion, useMotionValue, useTransform } from 'framer-motion';
 import { GripVertical, Sparkles } from 'lucide-react';
+import { useCardStore } from '@/lib/store';
+
 interface ParagraphBlockProps {
   paragraph: Paragraph;
   isEditable: boolean;
@@ -13,8 +15,6 @@ interface ParagraphBlockProps {
   onAddDescription: (paragraphId: string) => void;
   onUndo: (paragraphId: string) => void;
   onIconTap: () => void;
-  autoFocus?: boolean;
-  autoFocusNext?: boolean;
   onFocused?: () => void;
 }
 
@@ -33,8 +33,6 @@ const ParagraphBlock = ({
   onDrop,
   isCardDragging,
   onAddParagraph,
-  autoFocus,
-  autoFocusNext,
   onFocused,
   onAddDescription,
   onUndo,
@@ -64,7 +62,7 @@ const ParagraphBlock = ({
 
   // TipTap editor를 window.__tiptap_editors에 등록 (전체 선택용)
   useEffect(() => {
-    if (!window.__tiptap_editors) window.__tiptap_editors = [];
+    if (!window.__tiptap_editors) window.__tiptap_editors = [;
     if (editor && !window.__tiptap_editors.includes(editor)) {
       window.__tiptap_editors.push(editor);
     }
@@ -73,32 +71,12 @@ const ParagraphBlock = ({
         window.__tiptap_editors = window.__tiptap_editors.filter((ed: any) => ed !== editor);
       }
     };
-  }, [editor]);
-
-  // 최초 진입 시 포커스
-  useEffect(() => {
-    if (autoFocus && editor && isEditable) {
-      setTimeout(() => {
-        editor.commands.focus('end');
-        onFocused && onFocused();
-      }, 100);
-    }
-  }, [autoFocus, editor, isEditable]);
-
-  // 새 블록 생성 시 포커스
-  useEffect(() => {
-    if (autoFocusNext && editor && isEditable) {
-      setTimeout(() => {
-        editor.commands.focus('end');
-        onFocused && onFocused();
-      }, 100);
-    }
-  }, [autoFocusNext, editor, isEditable]);
+  }, [editor);
 
   const dragControls = useDragControls();
   const x = useMotionValue(0);
-  const backgroundOpacity = useTransform(x, [0, 200, [0, 0.7]);
-  const iconOpacity = useTransform(x, [100, 200], [0, 1]);
+  const backgroundOpacity = useTransform(x, [0, 200, [0, 0.7);
+  const iconOpacity = useTransform(x, [100, 200, [0, 1]);
 
   // 제스처 감지를 위한 Refs
   const scrubGestures = useRef(0);
